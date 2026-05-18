@@ -2,10 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Status } from './ws-client'
 
 const LAYOUT_KEY = 'ccdt:layout'
+const DEFAULT_HEIGHT = 360
+const MIN_HEIGHT = 140
 
-interface Layout { x: number; y: number; w: number; h: number }
-
-const DEFAULT_LAYOUT: Layout = { x: 24, y: 24, w: 640, h: 400 }
+interface Layout { height: number }
+const DEFAULT_LAYOUT: Layout = { height: DEFAULT_HEIGHT }
 
 function loadLayout(): Layout {
   try {
@@ -27,23 +28,28 @@ const STATUS_COLORS: Record<Status, string> = {
 export interface PanelProps {
   status: Status
   cwd: string
+  onClose?: () => void
   children: ReactNode
 }
 
-export function Panel({ status, cwd, children }: PanelProps) {
-  const [layout, setLayout] = useState<Layout>(() => loadLayout())
-  const dragRef = useRef<{ dx: number; dy: number } | null>(null)
+export function Panel({ status, cwd, onClose, children }: PanelProps) {
+  const [height, setHeight] = useState(() => loadLayout().height)
+  const resizeRef = useRef<{ startY: number; startH: number } | null>(null)
 
-  useEffect(() => { saveLayout(layout) }, [layout])
+  useEffect(() => { saveLayout({ height }) }, [height])
 
-  function onHeaderMouseDown(e: React.MouseEvent) {
-    dragRef.current = { dx: e.clientX - layout.x, dy: e.clientY - layout.y }
+  function onResizeMouseDown(e: React.MouseEvent) {
+    e.preventDefault()
+    resizeRef.current = { startY: e.clientY, startH: height }
     const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return
-      setLayout((l) => ({ ...l, x: ev.clientX - dragRef.current!.dx, y: ev.clientY - dragRef.current!.dy }))
+      if (!resizeRef.current) return
+      const dy = resizeRef.current.startY - ev.clientY
+      const maxH = Math.floor(window.innerHeight * 0.92)
+      const next = Math.max(MIN_HEIGHT, Math.min(maxH, resizeRef.current.startH + dy))
+      setHeight(next)
     }
     const onUp = () => {
-      dragRef.current = null
+      resizeRef.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -53,16 +59,27 @@ export function Panel({ status, cwd, children }: PanelProps) {
 
   return (
     <div data-ccdt-ignore style={{
-      position: 'fixed', left: layout.x, top: layout.y, width: layout.w, height: layout.h,
-      zIndex: 2147483000, background: '#0f172a', color: '#e2e8f0',
-      border: '1px solid #1e293b', borderRadius: 8,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      position: 'fixed', left: 0, right: 0, bottom: 0, height,
+      zIndex: 2147483000,
+      background: '#000000', color: '#e2e8f0',
+      borderTop: '1px solid #1e293b',
+      boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.35)',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
     }}>
-      <div onMouseDown={onHeaderMouseDown} style={{
-        cursor: 'move', padding: '6px 10px', background: '#1e293b',
-        display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none', fontSize: 12,
+      <div
+        onMouseDown={onResizeMouseDown}
+        style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: 6,
+          cursor: 'ns-resize', zIndex: 1,
+        }}
+        aria-hidden
+      />
+      <div style={{
+        padding: '8px 12px', background: '#000000',
+        borderBottom: '1px solid #1e293b',
+        display: 'flex', alignItems: 'center', gap: 8,
+        userSelect: 'none', fontSize: 12, position: 'relative',
       }}>
         <span style={{
           width: 8, height: 8, borderRadius: 4, background: STATUS_COLORS[status], display: 'inline-block',
@@ -70,6 +87,19 @@ export function Panel({ status, cwd, children }: PanelProps) {
         <span>{status}</span>
         <span style={{ opacity: 0.6 }}>·</span>
         <span style={{ opacity: 0.8 }}>{cwd}</span>
+        <div style={{ flex: 1 }} />
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close Claude devtool"
+            style={{
+              background: 'transparent', color: '#94a3b8', border: 'none',
+              cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 6px',
+            }}
+          >
+            ×
+          </button>
+        )}
       </div>
       {children}
     </div>

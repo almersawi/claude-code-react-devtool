@@ -1,10 +1,6 @@
-import { routeTag } from './picker/tags'
-import { detectRoute } from './route'
-
-export type PickerMode = 'none' | 'component' | 'dom'
+export type PickerMode = 'none' | 'component'
 
 export interface ToolbarProps {
-  onInject: (tag: string) => void
   onScreenshotRequest: () => void
   pickerActive: PickerMode
   setPickerActive: (m: PickerMode) => void
@@ -16,22 +12,15 @@ const btnStyle: React.CSSProperties = {
 }
 const activeStyle: React.CSSProperties = { ...btnStyle, background: '#0284c7', borderColor: '#0284c7' }
 
-export function Toolbar({ onInject, onScreenshotRequest, pickerActive, setPickerActive }: ToolbarProps) {
+export function Toolbar({ onScreenshotRequest, pickerActive, setPickerActive }: ToolbarProps) {
   return (
-    <div style={{ display: 'flex', gap: 6, padding: 6, background: '#0f172a', borderBottom: '1px solid #1e293b' }}>
+    <div style={{ display: 'flex', gap: 6, padding: 6, background: '#000000', borderBottom: '1px solid #1e293b' }}>
       <button style={pickerActive === 'component' ? activeStyle : btnStyle}
         onClick={() => setPickerActive(pickerActive === 'component' ? 'none' : 'component')}>
-        🎯 Pick
-      </button>
-      <button style={pickerActive === 'dom' ? activeStyle : btnStyle}
-        onClick={() => setPickerActive(pickerActive === 'dom' ? 'none' : 'dom')}>
-        🔲 DOM
-      </button>
-      <button style={btnStyle} onClick={() => onInject(routeTag(detectRoute()))}>
-        📍 Route
+        Pick Component
       </button>
       <button style={btnStyle} onClick={onScreenshotRequest}>
-        📷 Screenshot
+        Screenshot
       </button>
     </div>
   )

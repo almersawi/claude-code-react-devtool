@@ -3,46 +3,35 @@ import { render, fireEvent } from '@testing-library/react'
 import { Toolbar } from '../../../src/component/Toolbar'
 
 describe('Toolbar', () => {
-  it('renders four buttons', () => {
-    const { getByRole } = render(
+  it('renders Pick Component and Screenshot buttons', () => {
+    const { getByRole, queryByRole } = render(
       <Toolbar
-        onInject={vi.fn()}
         onScreenshotRequest={vi.fn()}
         pickerActive="none"
         setPickerActive={vi.fn()}
       />,
     )
-    expect(getByRole('button', { name: /pick/i })).toBeInTheDocument()
-    expect(getByRole('button', { name: /dom/i })).toBeInTheDocument()
-    expect(getByRole('button', { name: /route/i })).toBeInTheDocument()
+    expect(getByRole('button', { name: /pick component/i })).toBeInTheDocument()
     expect(getByRole('button', { name: /screenshot/i })).toBeInTheDocument()
+    // No DOM picker, no Route button.
+    expect(queryByRole('button', { name: /^dom$/i })).toBeNull()
+    expect(queryByRole('button', { name: /route/i })).toBeNull()
   })
 
-  it('clicks "Pick" → setPickerActive("component")', () => {
+  it('clicks "Pick Component" → setPickerActive("component")', () => {
     const setPickerActive = vi.fn()
     const { getByRole } = render(
-      <Toolbar onInject={vi.fn()} onScreenshotRequest={vi.fn()}
+      <Toolbar onScreenshotRequest={vi.fn()}
         pickerActive="none" setPickerActive={setPickerActive} />,
     )
-    fireEvent.click(getByRole('button', { name: /pick/i }))
+    fireEvent.click(getByRole('button', { name: /pick component/i }))
     expect(setPickerActive).toHaveBeenCalledWith('component')
-  })
-
-  it('clicks "Route" injects current pathname tag', () => {
-    const onInject = vi.fn()
-    window.history.replaceState({}, '', '/dashboard')
-    const { getByRole } = render(
-      <Toolbar onInject={onInject} onScreenshotRequest={vi.fn()}
-        pickerActive="none" setPickerActive={vi.fn()} />,
-    )
-    fireEvent.click(getByRole('button', { name: /route/i }))
-    expect(onInject).toHaveBeenCalledWith('[route: /dashboard] ')
   })
 
   it('clicks "Screenshot" calls onScreenshotRequest', () => {
     const onScreenshotRequest = vi.fn()
     const { getByRole } = render(
-      <Toolbar onInject={vi.fn()} onScreenshotRequest={onScreenshotRequest}
+      <Toolbar onScreenshotRequest={onScreenshotRequest}
         pickerActive="none" setPickerActive={vi.fn()} />,
     )
     fireEvent.click(getByRole('button', { name: /screenshot/i }))
