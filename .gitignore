@@ -9,3 +9,7 @@ dist/
 # editor / OS
 .idea/
 .vscode/
+
+coverage/
+playwright-report/
+test-results/
