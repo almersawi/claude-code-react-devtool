@@ -42,9 +42,7 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
   })
 
   const wss = new WebSocketServer({ noServer: true })
-  let active: WebSocket | null = null
-  let unsubOutput: (() => void) | null = null
-  let unsubExit: (() => void) | null = null
+  const clients = new Set<WebSocket>()
 
   function send(ws: WebSocket, msg: ServerMsg) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg))
@@ -56,18 +54,20 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
       return
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
-      if (active) {
-        ws.close(4001, 'another tab is already connected')
-        return
-      }
-      active = ws
-      // setTimeout (rather than setImmediate) ensures hello is sent after the
-      // TCP round-trip completes, so the client's 'open' event and 'message'
-      // listeners are both registered before the payload arrives.
-      // Subscriptions are established inside the same callback so that any
-      // buffered/scrollback output emitted synchronously by onOutput arrives
-      // AFTER the hello message, not before.
+      clients.add(ws)
+
+      // Per-WS subscriptions, bound via closure so a stale close event for an
+      // older WS only tears down its OWN listeners.
+      let unsubOutput: (() => void) | null = null
+      let unsubExit: (() => void) | null = null
+
+      // setTimeout ensures hello is sent after the TCP round-trip completes,
+      // so the client's 'open' event and 'message' listeners are both
+      // registered before the payload arrives. Subscriptions are established
+      // inside the same callback so any synchronous scrollback replay from
+      // onOutput arrives AFTER the hello message.
       setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) return
         send(ws, { type: 'hello', sessionId, cwd: opts.cwd, cols, rows })
         unsubOutput = opts.pty.onOutput((data) => send(ws, { type: 'output', data }))
         unsubExit = opts.pty.onExit((code) => send(ws, { type: 'exit', code }))
@@ -95,8 +95,9 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
       })
 
       ws.on('close', () => {
-        if (active === ws) active = null
-        unsubOutput?.(); unsubExit?.()
+        unsubOutput?.()
+        unsubExit?.()
+        clients.delete(ws)
       })
     })
   })
@@ -110,7 +111,10 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
     sessionId,
     close: () =>
       new Promise<void>((resolve) => {
-        if (active) active.terminate()
+        for (const ws of clients) {
+          try { ws.terminate() } catch { /* ignore */ }
+        }
+        clients.clear()
         for (const socket of openSockets) socket.destroy()
         openSockets.clear()
         wss.close(() => http.close(() => resolve()))

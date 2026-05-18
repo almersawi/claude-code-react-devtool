@@ -113,24 +113,28 @@ describe('createBridgeServer', () => {
     ws.close()
   })
 
-  it('rejects a second concurrent client with code 4001', async () => {
+  it('accepts multiple concurrent clients and broadcasts pty output to all', async () => {
     const a = await connect(server.port)
-    await nextMessage(a)
-    const b = new WebSocket(`ws://127.0.0.1:${server.port}/ws`)
-    const code = await new Promise<number>((resolve) => {
-      b.once('close', (c) => resolve(c))
-    })
-    expect(code).toBe(4001)
+    await nextMessage(a) // hello on a
+    const b = await connect(server.port)
+    await nextMessage(b) // hello on b
+    expect(a.readyState).toBe(WebSocket.OPEN)
+    expect(b.readyState).toBe(WebSocket.OPEN)
+    f.emit('hi all')
+    const [msgA, msgB] = await Promise.all([nextMessage(a), nextMessage(b)])
+    expect(msgA).toEqual({ type: 'output', data: 'hi all' })
+    expect(msgB).toEqual({ type: 'output', data: 'hi all' })
     a.close()
+    b.close()
   })
 
-  it('emits exit and accepts a second client after disconnect', async () => {
+  it('accepts a fresh client after the previous one disconnects', async () => {
     const a = await connect(server.port)
     await nextMessage(a)
     a.close()
     await new Promise((r) => setTimeout(r, 30))
-    const b = await connect(server.port)
-    const msg = await nextMessage(b)
+    const { ws: b, take } = await connectBuffered(server.port)
+    const msg = await take()
     expect(msg.type).toBe('hello')
     b.close()
   })

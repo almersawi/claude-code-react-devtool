@@ -47,13 +47,20 @@ export class BridgeClient {
   }
 
   connect() {
+    // Guard against reentry: if a WS is already connecting or open, do nothing.
+    if (this.ws && this.ws.readyState <= 1) return
+    if (this.timer) { clearTimeout(this.timer); this.timer = null }
     this.explicitlyClosed = false
     this.setStatus(this.attempt === 0 ? 'connecting' : 'reconnecting')
+    // eslint-disable-next-line no-console
+    console.log('[ccdt] connecting to', this.url, 'attempt=', this.attempt)
     const ws = new WebSocket(this.url)
     this.ws = ws
     ws.onopen = () => {
       this.attempt = 0
       this.setStatus('connected')
+      // eslint-disable-next-line no-console
+      console.log('[ccdt] ws open')
       for (const m of this.queue) ws.send(m)
       this.queue = []
     }
@@ -63,7 +70,9 @@ export class BridgeClient {
       if (!isServerMsg(parsed)) return
       this.emit(parsed.type, parsed as any)
     }
-    ws.onclose = () => {
+    ws.onclose = (e) => {
+      // eslint-disable-next-line no-console
+      console.log('[ccdt] ws closed', { code: e.code, reason: e.reason, wasClean: e.wasClean })
       this.ws = null
       if (this.explicitlyClosed) { this.setStatus('closed'); return }
       const base = this.opts.reconnectBaseMs ?? 1000
@@ -73,7 +82,10 @@ export class BridgeClient {
       this.setStatus('reconnecting')
       this.timer = setTimeout(() => this.connect(), delay)
     }
-    ws.onerror = () => { /* close will follow */ }
+    ws.onerror = (e) => {
+      // eslint-disable-next-line no-console
+      console.log('[ccdt] ws error', e)
+    }
   }
 
   send(msg: ClientMsg) {
