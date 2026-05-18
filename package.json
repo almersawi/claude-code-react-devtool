@@ -3,6 +3,25 @@
   "version": "0.1.0",
   "description": "In-app Claude Code panel for React dev mode — pick components, attach screenshots, prompt without typing paths.",
   "license": "MIT",
+  "author": "Islam Almersawi",
+  "homepage": "https://github.com/almersawi/claude-code-react-devtool#readme",
+  "bugs": {
+    "url": "https://github.com/almersawi/claude-code-react-devtool/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/almersawi/claude-code-react-devtool.git"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "react",
+    "devtool",
+    "anthropic",
+    "ai",
+    "agent",
+    "developer-tools"
+  ],
   "type": "module",
   "main": "./dist/component/index.cjs",
   "module": "./dist/component/index.js",
@@ -17,7 +36,7 @@
   "bin": {
     "claude-code-react-devtool": "./bin/cli.js"
   },
-  "files": ["dist", "bin", "skills", "README.md"],
+  "files": ["dist", "bin", "skills", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
