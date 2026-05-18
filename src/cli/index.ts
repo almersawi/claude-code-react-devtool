@@ -27,7 +27,16 @@ function parseArgs(argv: string[]): Args {
     const a = argv[i]
     if (passthrough) { out.claudeArgs.push(a!); continue }
     switch (a) {
-      case '--port':  out.port = Number(argv[++i]); break
+      case '--port': {
+        const n = Number(argv[++i])
+        if (!Number.isFinite(n) || n < 1 || n > 65535) {
+          process.stderr.write(`--port must be an integer between 1 and 65535\n`)
+          out.help = true
+        } else {
+          out.port = n
+        }
+        break
+      }
       case '--host':  out.host = String(argv[++i]); break
       case '--cwd':   out.cwd = String(argv[++i]); break
       case '--yolo':  out.yolo = true; break
