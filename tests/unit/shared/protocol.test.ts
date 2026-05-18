@@ -15,6 +15,8 @@ describe('protocol type guards', () => {
     expect(isClientMsg({ type: 'bogus' })).toBe(false)
     expect(isClientMsg({ type: 'input' })).toBe(false)
     expect(isClientMsg({ type: 'resize', cols: '80', rows: 24 })).toBe(false)
+    expect(isClientMsg({ type: 'screenshot', png: 'abc' })).toBe(false)
+    expect(isClientMsg({ type: 'screenshot', png: 'abc', meta: null })).toBe(false)
   })
 
   it('isServerMsg accepts every valid server message type', () => {
@@ -28,5 +30,10 @@ describe('protocol type guards', () => {
   it('isServerMsg rejects malformed input', () => {
     expect(isServerMsg({ type: 'hello' })).toBe(false)
     expect(isServerMsg({ type: 'output', data: 5 })).toBe(false)
+    expect(isServerMsg({ type: 'screenshot-saved' })).toBe(false)
+    expect(isServerMsg({ type: 'screenshot-saved', path: 5 })).toBe(false)
+    expect(isServerMsg({ type: 'error' })).toBe(false)
+    expect(isServerMsg({ type: 'exit' })).toBe(false)
+    expect(isServerMsg({ type: 'exit', code: '0' })).toBe(false)
   })
 })
