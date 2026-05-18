@@ -39,6 +39,37 @@ function nextMessage<T = any>(ws: WebSocket): Promise<T> {
   })
 }
 
+/** Connect and return a WebSocket that buffers ALL messages received from the
+ *  moment the socket is created (before 'open' fires), so no frames are lost
+ *  due to the async gap between open and attaching listeners. */
+async function connectBuffered(port: number): Promise<{ ws: WebSocket; take(): Promise<any> }> {
+  const queue: any[] = []
+  const waiters: Array<(v: any) => void> = []
+
+  function enqueue(msg: any) {
+    if (waiters.length) {
+      waiters.shift()!(msg)
+    } else {
+      queue.push(msg)
+    }
+  }
+
+  function take(): Promise<any> {
+    if (queue.length) return Promise.resolve(queue.shift())
+    return new Promise((resolve) => waiters.push(resolve))
+  }
+
+  const ws = await new Promise<WebSocket>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`)
+    // Attach message listener BEFORE resolving so no frames are missed.
+    ws.on('message', (raw) => enqueue(JSON.parse(raw.toString())))
+    ws.once('open', () => resolve(ws))
+    ws.once('error', reject)
+  })
+
+  return { ws, take }
+}
+
 describe('createBridgeServer', () => {
   let server: BridgeServer
   let f: ReturnType<typeof fakeSpawn>
@@ -109,5 +140,20 @@ describe('createBridgeServer', () => {
     const body = await res.json()
     expect(body.ok).toBe(true)
     expect(body.cwd).toBe(cwd)
+  })
+
+  it('sends hello before replayed pty output', async () => {
+    // Emit PTY output BEFORE the client connects. The next client will receive
+    // it as scrollback replay — and that replay must come AFTER the hello.
+    f.emit('pre-connect output\n')
+    // Use connectBuffered so the message listener is registered before the
+    // WebSocket 'open' promise resolves, ensuring no frames are missed even
+    // when the server sends hello + replay in the same event-loop tick.
+    const { ws, take } = await connectBuffered(server.port)
+    const first = await take()
+    expect(first.type).toBe('hello')
+    const second = await take()
+    expect(second).toEqual({ type: 'output', data: 'pre-connect output\n' })
+    ws.close()
   })
 })

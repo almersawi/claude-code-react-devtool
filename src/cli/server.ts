@@ -64,10 +64,14 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
       // setTimeout (rather than setImmediate) ensures hello is sent after the
       // TCP round-trip completes, so the client's 'open' event and 'message'
       // listeners are both registered before the payload arrives.
-      setTimeout(() => send(ws, { type: 'hello', sessionId, cwd: opts.cwd, cols, rows }), 0)
-
-      unsubOutput = opts.pty.onOutput((data) => send(ws, { type: 'output', data }))
-      unsubExit = opts.pty.onExit((code) => send(ws, { type: 'exit', code }))
+      // Subscriptions are established inside the same callback so that any
+      // buffered/scrollback output emitted synchronously by onOutput arrives
+      // AFTER the hello message, not before.
+      setTimeout(() => {
+        send(ws, { type: 'hello', sessionId, cwd: opts.cwd, cols, rows })
+        unsubOutput = opts.pty.onOutput((data) => send(ws, { type: 'output', data }))
+        unsubExit = opts.pty.onExit((code) => send(ws, { type: 'exit', code }))
+      }, 0)
 
       ws.on('message', async (raw) => {
         let parsed: unknown
