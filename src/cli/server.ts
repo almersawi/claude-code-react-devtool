@@ -61,9 +61,10 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
         return
       }
       active = ws
-      // Defer hello so the client's 'open' event fires first and message
-      // listeners can be registered before we send.
-      setImmediate(() => send(ws, { type: 'hello', sessionId, cwd: opts.cwd, cols, rows }))
+      // setTimeout (rather than setImmediate) ensures hello is sent after the
+      // TCP round-trip completes, so the client's 'open' event and 'message'
+      // listeners are both registered before the payload arrives.
+      setTimeout(() => send(ws, { type: 'hello', sessionId, cwd: opts.cwd, cols, rows }), 0)
 
       unsubOutput = opts.pty.onOutput((data) => send(ws, { type: 'output', data }))
       unsubExit = opts.pty.onExit((code) => send(ws, { type: 'exit', code }))
@@ -105,13 +106,10 @@ export async function createBridgeServer(opts: CreateBridgeOpts): Promise<Bridge
     sessionId,
     close: () =>
       new Promise<void>((resolve) => {
-        // Close all active WebSocket connections
         if (active) active.terminate()
-        wss.close()
-        // Destroy all open sockets so http.close() resolves promptly
         for (const socket of openSockets) socket.destroy()
         openSockets.clear()
-        http.close(() => resolve())
+        wss.close(() => http.close(() => resolve()))
       }),
   }
 }
