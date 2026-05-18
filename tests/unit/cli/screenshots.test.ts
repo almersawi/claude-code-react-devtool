@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { mkdtempSync, readFileSync, existsSync, writeFileSync, statSync, utimesSync, readdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, existsSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { saveScreenshot, pruneOldScreenshots, SCREENSHOTS_SUBDIR } from '../../../src/cli/screenshots'

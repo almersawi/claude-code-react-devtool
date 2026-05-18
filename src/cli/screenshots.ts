@@ -1,5 +1,4 @@
 import { mkdir, writeFile, readdir, stat, unlink } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const SCREENSHOTS_SUBDIR = '.claude-code-devtool/screenshots'
@@ -28,9 +27,9 @@ export interface PruneOpts {
 
 export async function pruneOldScreenshots(opts: PruneOpts): Promise<number> {
   const dir = join(opts.cwd, SCREENSHOTS_SUBDIR)
-  if (!existsSync(dir)) return 0
+  let files: string[]
+  try { files = await readdir(dir) } catch { return 0 }
   const cutoff = Date.now() - opts.maxAgeDays * 24 * 60 * 60 * 1000
-  const files = await readdir(dir)
   let deleted = 0
   for (const f of files) {
     const abs = join(dir, f)
