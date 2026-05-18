@@ -28,11 +28,12 @@ const STATUS_COLORS: Record<Status, string> = {
 export interface PanelProps {
   status: Status
   cwd: string
+  route?: string
   onClose?: () => void
   children: ReactNode
 }
 
-export function Panel({ status, cwd, onClose, children }: PanelProps) {
+export function Panel({ status, cwd, route, onClose, children }: PanelProps) {
   const [height, setHeight] = useState(() => loadLayout().height)
   const resizeRef = useRef<{ startY: number; startH: number } | null>(null)
 
@@ -86,7 +87,9 @@ export function Panel({ status, cwd, onClose, children }: PanelProps) {
         }} />
         <span>{status}</span>
         <span style={{ opacity: 0.6 }}>·</span>
-        <span style={{ opacity: 0.8 }}>{cwd}</span>
+        <span style={{ opacity: 0.95, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }} title={cwd}>
+          {route ?? cwd}
+        </span>
         <div style={{ flex: 1 }} />
         {onClose && (
           <button

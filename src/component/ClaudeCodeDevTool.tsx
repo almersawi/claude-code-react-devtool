@@ -62,6 +62,9 @@ export function ClaudeCodeDevTool(props: ClaudeCodeDevToolProps = {}) {
   const client = getSharedClient(url)
   const [status, setStatus] = useState<Status>(client.getStatus())
   const [cwd, setCwd] = useState<string>('…')
+  const [pathname, setPathname] = useState<string>(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  )
   const [pickerActive, setPickerActive] = useState<PickerMode>('none')
   const [open, setOpen] = useState(props.defaultOpen ?? false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -72,6 +75,30 @@ export function ClaudeCodeDevTool(props: ClaudeCodeDevToolProps = {}) {
     const off2 = client.on('hello', (m) => setCwd(m.cwd))
     return () => { off1(); off2() }
   }, [client])
+
+  // Track route changes across popstate AND programmatic pushState/replaceState
+  // so the panel header reflects the current page no matter how the host app
+  // navigates (React Router, TanStack Router, manual history calls...).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const update = () => setPathname(window.location.pathname)
+    window.addEventListener('popstate', update)
+    const origPush = window.history.pushState
+    const origReplace = window.history.replaceState
+    window.history.pushState = function (...a: Parameters<typeof origPush>) {
+      origPush.apply(this, a)
+      update()
+    }
+    window.history.replaceState = function (...a: Parameters<typeof origReplace>) {
+      origReplace.apply(this, a)
+      update()
+    }
+    return () => {
+      window.removeEventListener('popstate', update)
+      window.history.pushState = origPush
+      window.history.replaceState = origReplace
+    }
+  }, [])
 
   useEffect(() => {
     if (!props.hotkey) return
@@ -166,7 +193,7 @@ export function ClaudeCodeDevTool(props: ClaudeCodeDevToolProps = {}) {
   return (
     <>
       <div ref={panelRef}>
-        <Panel status={status} cwd={cwd} onClose={() => setOpen(false)}>
+        <Panel status={status} cwd={cwd} route={pathname} onClose={() => setOpen(false)}>
           <Toolbar
             onScreenshotRequest={handleScreenshot}
             pickerActive={pickerActive}

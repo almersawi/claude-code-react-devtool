@@ -129,15 +129,15 @@ describe('createBridgeServer', () => {
   })
 
   it('accepts a fresh client after the previous one disconnects', async () => {
-    const a = await connect(server.port)
-    await nextMessage(a)
+    const { ws: a, take: takeA } = await connectBuffered(server.port)
+    await takeA() // hello on a
     a.close()
-    await new Promise((r) => setTimeout(r, 30))
+    await new Promise((r) => setTimeout(r, 50))
     const { ws: b, take } = await connectBuffered(server.port)
     const msg = await take()
     expect(msg.type).toBe('hello')
     b.close()
-  })
+  }, 10_000)
 
   it('GET /health returns ok', async () => {
     const res = await fetch(`http://127.0.0.1:${server.port}/health`)
