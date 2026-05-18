@@ -17,7 +17,7 @@
   "bin": {
     "claude-code-react-devtool": "./bin/cli.js"
   },
-  "files": ["dist", "bin", "README.md"],
+  "files": ["dist", "bin", "skills", "README.md"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",

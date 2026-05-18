@@ -1,6 +1,7 @@
 import { createBridgeServer } from './server'
 import { createPtySession, type PtySpawn } from './pty'
 import { pruneOldScreenshots, SCREENSHOTS_SUBDIR } from './screenshots'
+import { installSkillIfMissing } from './install-skill'
 
 interface Args {
   port: number
@@ -39,7 +40,10 @@ function parseArgs(argv: string[]): Args {
       }
       case '--host':  out.host = String(argv[++i]); break
       case '--cwd':   out.cwd = String(argv[++i]); break
-      case '--yolo':  out.yolo = true; break
+      case '--yolo':
+      case '--dangerously-skip-permissions':
+      case '--skip-permissions':
+        out.yolo = true; break
       case '--no-banner': out.banner = false; break
       case '-h': case '--help': out.help = true; break
       case '--': passthrough = true; break
@@ -55,12 +59,13 @@ function help() {
   process.stdout.write(`Usage: claude-code-react-devtool [options] [-- ...claude args]
 
 Options:
-  --port <n>      WebSocket port (default 7777, retries +1..+4)
-  --host <addr>   Bind address (default 127.0.0.1)
-  --cwd <path>    Working directory for claude (default cwd)
-  --yolo          Pass --dangerously-skip-permissions to claude
-  --no-banner     Skip startup banner
-  -h, --help      Show help
+  --port <n>                       WebSocket port (default 7777, retries +1..+4)
+  --host <addr>                    Bind address (default 127.0.0.1)
+  --cwd <path>                     Working directory for claude (default cwd)
+  --yolo,
+  --dangerously-skip-permissions   Skip all permission prompts in claude
+  --no-banner                      Skip startup banner
+  -h, --help                       Show help
 `)
 }
 
@@ -122,14 +127,19 @@ async function main() {
 
   const server = await createBridgeServer({ host: args.host, port, pty, cwd: args.cwd })
   await pruneOldScreenshots({ cwd: args.cwd, maxAgeDays: 7 })
+  const skill = await installSkillIfMissing()
 
   if (args.banner) {
     process.stdout.write(`claude-code-react-devtool listening on ws://${args.host}:${port}/ws
 cwd: ${args.cwd}
-Add this to .gitignore:  ${SCREENSHOTS_SUBDIR.split('/')[0]}/
-
-Press Ctrl+C to stop.
+${args.yolo ? '⚠  permissions: SKIPPED (--dangerously-skip-permissions)\n' : ''}Add this to .gitignore:  ${SCREENSHOTS_SUBDIR.split('/')[0]}/
 `)
+    if (skill.status === 'installed') {
+      process.stdout.write(`installed skill: ${skill.path}\n`)
+    } else if (skill.status === 'skipped' && skill.reason) {
+      process.stdout.write(`(skill install skipped: ${skill.reason})\n`)
+    }
+    process.stdout.write(`\nPress Ctrl+C to stop.\n`)
   }
 
   const shutdown = async () => {
