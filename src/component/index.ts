@@ -1,2 +1,2 @@
-// placeholder — implemented in Task 8+
-export {}
+export { ClaudeCodeDevTool } from './ClaudeCodeDevTool'
+export type { ClaudeCodeDevToolProps } from './ClaudeCodeDevTool'
