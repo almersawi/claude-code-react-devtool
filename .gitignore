@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# devtool screenshot scratch dir (for testing this package against a host app)
+.claude-code-devtool/
+
+# editor / OS
+.idea/
+.vscode/
